@@ -1,0 +1,3 @@
+pos.pattern_11	pos.pattern_16	0	1.2e-07	3.4e-06	2.7e-06	12	ACGTACGT	ACGTACGT	+
+pos.pattern_0	pos.pattern_10	-2	0.03	0.5	0.2	8	AAACCC	TTTGGG	-
+pos.pattern_2	pos.pattern_19	1	0.5	0.9	0.8	6	GGCC	GGAT	+

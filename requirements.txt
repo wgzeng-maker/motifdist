@@ -1,0 +1,6 @@
+numpy
+pandas
+matplotlib
+logomaker
+h5py
+hdf5plugin

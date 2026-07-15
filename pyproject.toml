@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "motifdist"
+version = "0.1.0"
+description = "Spatial-grammar analysis of TF motifs mapped to genome coordinates: co-occurrence, filters, and spacing with two null models."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { file = "LICENSE" }
+authors = [{ name = "wgzeng-maker" }]
+dependencies = [
+    "numpy",
+    "pandas",
+]
+
+[project.optional-dependencies]
+# Motif I/O + figures. Core analysis (cooccur/spacing/nulls) needs only numpy+pandas.
+viz = ["matplotlib", "logomaker"]
+h5 = ["h5py", "hdf5plugin"]
+dev = ["pytest", "matplotlib", "h5py", "hdf5plugin"]
+
+[project.scripts]
+motifdist = "motifdist.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["motifdist*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
