@@ -27,6 +27,19 @@ def test_parse_with_header_tsv():
     assert np.isclose(df.iloc[1]["q-value"], 0.2)
 
 
+def test_trailing_comment_footer_not_parsed_as_data():
+    # Real TOMTOM output ends with a '#'-comment footer (version/format notes).
+    # Those lines must NOT be parsed as data rows, in either format.
+    with_header = parse_tomtom(FIX / "tomtom_with_footer.tsv")
+    headerless = parse_tomtom(FIX / "tomtom_headerless_footer.txt")
+    assert len(with_header) == 2
+    assert len(headerless) == 2
+    # every row is a real pattern pair, not a footer line
+    assert with_header["Query_ID"].str.startswith(("pos/", "neg/")).all()
+    assert headerless["Query_ID"].str.startswith(("pos/", "neg/")).all()
+    assert np.isclose(headerless.iloc[0]["q-value"], 2.7e-06)
+
+
 def test_both_formats_agree_on_qvalues():
     a = parse_tomtom(FIX / "tomtom_headerless.txt")
     b = parse_tomtom(FIX / "tomtom_with_header.tsv")

@@ -1,0 +1,7 @@
+Query_ID	Target_ID	Optimal_offset	p-value	E-value	q-value	Overlap	Query_consensus	Target_consensus	Orientation
+pos.pattern_11	pos.pattern_16	0	1.2e-07	3.4e-06	2.7e-06	12	ACGTACGT	ACGTACGT	+
+pos.pattern_0	pos.pattern_10	-2	0.03	0.5	0.2	8	AAACCC	TTTGGG	-
+
+# Tomtom (Motif Comparison Tool): Version 5.4.1 compiled on Jan  1 2024
+# The format of this file is described at https://meme-suite.org/meme/doc/tomtom-output-format.html
+# tomtom -no-ssc -oc . --verbosity 1 -text all_patterns.meme all_patterns.meme

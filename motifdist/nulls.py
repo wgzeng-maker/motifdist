@@ -26,6 +26,11 @@ import numpy as np
 import pandas as pd
 
 from .spacing import spacing_analysis
+# The two nulls shuffle positions the same way (permute midpoints within each
+# chromosome, rebuild start/end); they differ only in the *statistic* they then
+# compute — co-occurrence count (null #1) vs spacing peak height (null #2). Share
+# the one shuffle so they cannot drift.
+from .cooccurrence import shuffled_copy as _shuffle_positions
 
 log = logging.getLogger("motifdist.nulls")
 
@@ -44,19 +49,6 @@ def peak_height_ratio(distances, bins=DEFAULT_BINS):
     nz = h[h > 0]
     bg = np.median(nz) if len(nz) else 0
     return float(h.max() / bg) if bg > 0 else float("nan")
-
-
-def _shuffle_positions(ann, rng):
-    """Shuffle `mid` within each chromosome and rebuild start/end around the new
-    midpoint (keeping each seqlet's width), so overlap exclusion behaves the same
-    way in the null as in the real data."""
-    shuf = ann.copy()
-    for _, g in ann.groupby("chrom"):
-        shuf.loc[g.index, "mid"] = rng.permutation(g["mid"].values)
-    half = (shuf["end"] - shuf["start"]) // 2
-    shuf["start"] = shuf["mid"] - half
-    shuf["end"] = shuf["mid"] + half
-    return shuf
 
 
 def spacing_null_test(ann, pairs, ceiling=250, n_shuffles=200, seed=0,

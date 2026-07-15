@@ -89,17 +89,19 @@ def parse_tomtom(path):
     `tomtom.tsv`/`tomtom.txt`. Pattern IDs in dot form are normalized to slash
     form. Numeric columns (offset, p/E/q-value, overlap) are coerced to numbers.
     """
+    # Real TOMTOM output carries a trailing footer of '#'-comment lines (version
+    # and format notes), so we always skip '#' lines. The header row, when present,
+    # is the first non-comment line (`tomtom.tsv`); a headerless `tomtom.txt` has a
+    # data row there instead.
     with open(path) as fh:
-        first = fh.readline()
-    has_header = first.startswith("#") or first.startswith("Query_ID") or "Query_ID\t" in first
+        first_data = next((ln for ln in fh if ln.strip() and not ln.startswith("#")), "")
+    has_header = first_data.startswith("Query_ID") or "Query_ID\t" in first_data
 
     if has_header:
-        comment = "#" if first.startswith("#") else None
-        df = pd.read_csv(path, sep="\t", comment=comment)
-        # normalize column names to the canonical set where possible
+        df = pd.read_csv(path, sep="\t", comment="#")
         df = df.rename(columns={c: c.strip() for c in df.columns})
     else:
-        df = pd.read_csv(path, sep="\t", header=None, names=TOMTOM_COLUMNS)
+        df = pd.read_csv(path, sep="\t", header=None, names=TOMTOM_COLUMNS, comment="#")
 
     # tolerate either 'q-value' or 'qval'-style names
     rename = {}

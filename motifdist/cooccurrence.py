@@ -83,10 +83,18 @@ def shuffled_copy(ann_df, rng):
     This preserves where seqlets can be (peak geometry) and destroys only which
     pattern sits where. `rng` is a numpy Generator, so results are reproducible
     for a fixed seed.
+
+    start/end are rebuilt around the shuffled midpoint (keeping each seqlet's
+    width) so the copy stays internally consistent — this matters when the
+    overlap-aware counter (`count_near_pairs_no_overlap`) reads them. The default
+    counter uses only `mid`, so its results are unaffected.
     """
     out = ann_df.copy()
     for _, g in ann_df.groupby("chrom"):
         out.loc[g.index, "mid"] = rng.permutation(g["mid"].values)
+    half = (out["end"] - out["start"]) // 2
+    out["start"] = out["mid"] - half
+    out["end"] = out["mid"] + half
     return out
 
 
