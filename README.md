@@ -1,10 +1,10 @@
 # motifdist
 
-Python tools for analyzing co-occurrence, spacing, and orientation of transcription-factor motifs mapped to genome coordinates.
+`motifdist` tests whether transcription-factor motifs occur near each other and whether they have a preferred spacing or orientation.
 
-Starting from a ChromBPNet / TF-MoDISco seqlet annotation table, the pipeline screens motif pairs for co-occurrence, filters potential artifacts, and tests spacing against a separate shuffle-based null model.
+It takes a ChromBPNet / TF-MoDISco seqlet annotation table, screens motif pairs for co-occurrence, removes potential artifacts, and compares their spacing with shuffled data.
 
-| At a glance | |
+| Item | Description |
 |---|---|
 | Input | A genome-coordinate seqlet annotation CSV |
 | Workflow | Co-occurrence screen → artifact filters → spacing analysis → report |
@@ -14,10 +14,10 @@ Starting from a ChromBPNet / TF-MoDISco seqlet annotation table, the pipeline sc
 
 ## Start here
 
-- **Try the workflow:** [Runnable example](examples/README.md), using the bundled dataset.
-- **Use your own data:** [Install](#install), [input contract](#input-contract), and [CLI](#cli).
-- **Inspect the method:** [Scientific idea](#the-scientific-idea), [artifact filters](#the-four-filters-stage-b), and [signed distances](#the-signed-distance-convention-stage-c).
-- **Inspect the implementation:** [Module layout](#module-layout) and [tests](tests/).
+- **Example:** [Runnable example](examples/README.md), using the bundled dataset.
+- **Your own data:** [Install](#install), [input contract](#input-contract), and [CLI](#cli).
+- **Methods:** [Scientific idea](#the-scientific-idea), [artifact filters](#the-four-filters-stage-b), and [signed distances](#the-signed-distance-convention-stage-c).
+- **Code:** [Module layout](#module-layout) and [tests](tests/).
 
 The tool starts from existing annotations; it does not call or back-annotate seqlets.
 Spacing results are leads for validation, as discussed under [Interpretation and limitations](#interpretation-and-limitations).
@@ -36,8 +36,8 @@ Docker available.
 
 ## Input contract
 
-A seqlet annotation CSV with these columns (validated strictly on load; the
-loader fails loudly rather than continuing on bad input):
+The input is a seqlet annotation CSV with the following columns. The loader
+checks these fields and stops if the input is invalid.
 
 | column | meaning |
 |---|---|
@@ -48,8 +48,7 @@ loader fails loudly rather than continuing on bad input):
 | `subpattern` | subcluster label (present but may be empty) |
 
 Optional secondary inputs (only for the sibling filter and logos): a TF-MoDISco
-`.h5` and a JASPAR `.meme` database. **The JASPAR path is always an argument —
-never a hardcoded version.**
+`.h5` and a JASPAR `.meme` database. Pass the JASPAR database path as an argument.
 
 ## CLI
 
@@ -72,8 +71,8 @@ motifdist spacing  --ann TABLE --pairs candidates.csv \
 motifdist report   --spacing spacing/ --out report.pdf
 ```
 
-Every subcommand takes explicit inputs, a deterministic `--seed`, stop-fails on
-missing/invalid files, and logs what was dropped at each step and why. Use
+Subcommands take explicit inputs and a reproducible `--seed`, stop on
+missing or invalid files, and log which entries were removed and why. Use
 **≥200 shuffles for any reported result** (30 is only for a quick look; with 30
 shuffles the smallest achievable p-value is 1/31 ≈ 0.032).
 
@@ -133,31 +132,30 @@ automatically somewhat close just from peak geometry. **Null model #1** shuffles
 chromosome. That preserves peak geometry and destroys only pattern-*specific*
 placement, so enrichment = observed ÷ null isolates real affinity.
 
-Two behaviors this surfaces (features, not bugs):
+In the reference run:
 - The **median enrichment across all pairs sits near 1** (~0.8 in our reference
   run). If it drifts far from 1, the null is biased — `motifdist` reports it so
   you can see that.
 - **Most pairs are depleted, not enriched**: patterns compete for limited space
   inside peaks.
 
-### Why a tall histogram bin is cheap (null model #2)
+### Testing spacing peaks (null model #2)
 
-Throw ~600 distances into ~100 bins and the tallest bin will be several times the
-typical bin *by luck alone* — randomness is lumpy. So a "peak" in a spacing
-histogram is not evidence of preferred spacing until it beats chance. **Null model
+With ~600 distances across ~100 bins, the tallest bin can be several times the
+typical bin by chance. A spacing peak therefore needs to be compared with a
+null distribution. **Null model
 #2** shuffles seqlet positions, rebuilds the spacing histogram, and records how
 tall the tallest bin gets by chance. The reported p-value is the fraction of
 shuffles whose peak is at least as tall as the observed one.
 
-> In our reference run the NFI→Zic "peak" (4.6×) was *exactly* what chance
-> produces (4.7×). Without this null you would report a spacing preference that
-> does not exist. **The two nulls are different and must not be conflated:** #1 is
-> about co-occurrence, #2 is about spacing.
+> In the reference run, the NFI→Zic peak (4.6×) was similar to the null result
+> (4.7×), providing no evidence of preferred spacing in this test. Null #1 tests
+> co-occurrence; null #2 tests spacing.
 
 ## The four filters (Stage B)
 
-Applied to co-occurrence hits to drop artifacts. Each catches something the
-others miss — keep all four.
+These filters address small sample counts, similar motifs, frequent partners,
+and overlapping seqlets.
 
 1. **Small-number noise.** The top raw hits in our reference run were 40×
    "enriched" but built on **1–2 observations**. Require both patterns to be
@@ -166,25 +164,24 @@ others miss — keep all four.
 
 2. **Sibling-motif filter.** Two patterns can be the *same TF* captured twice;
    their co-occurrence is then trivial. `motifdist` runs **pattern-vs-pattern
-   TOMTOM** and drops pairs whose motifs match (q < 0.05). This correctly caught
-   pattern_11 ↔ pattern_16 (both ZNF143, q = 2.7e-06). It uses **real TOMTOM**,
-   not a homemade similarity score (an earlier cosine-style CWM score ranked that
-   very ZNF143 sibling pair as *less* similar than unrelated pairs — backwards —
-   so it is not used for filtering).
+   TOMTOM** and drops pairs whose motifs match (q < 0.05). This identified
+   pattern_11 ↔ pattern_16 (both ZNF143, q = 2.7e-06). An earlier cosine-style CWM score ranked
+   this ZNF143 pair as less similar than unrelated pairs, so that score is not
+   used for filtering.
 
 3. **Promiscuity filter.** A pattern that pairs with *everything* (Zic = 11, YY2 =
    10 partners in our reference run) marks a busy regulatory neighborhood, not a
    specific composite. Keep only pairs where **both** partners are selective
    (`--max-partners`).
 
-4. **Overlap-exclusion filter — novel.** Two seqlets in *different* patterns can
+4. **Overlap-exclusion filter.** Two seqlets in *different* patterns can
    physically overlap on the genome (sharing up to ~49% of their bases), because
    MoDISco's overlap suppression only prevents >50% overlap *within a single
    extraction pass*, not across patterns. Overlapping pairs produce a **phantom
    tight-spacing spike (~15 bp)** that survives the sibling test. `motifdist`
    **excludes physically-overlapping seqlet pairs before any spacing analysis**
-   (on by default). The QC diagnostic is a clean tell: in our reference run the
-   phantom spike was **100% overlapping pairs vs ~20% in the background**.
+   (on by default). In the reference run, the
+   spike contained **100% overlapping pairs vs ~20% in the background**.
 
 ## The signed-distance convention (Stage C)
 
@@ -206,7 +203,7 @@ When you test several pairs, a single significant hit is roughly what multiple
 testing predicts by chance. Treat one significant spacing result among many as a
 lead to validate, not a finding. Report results with **≥200 shuffles**, and read
 the co-occurrence sanity check (median enrichment near 1) before trusting the
-enrichment numbers. `motifdist` is built to help you *not* oversell a peak.
+enrichment numbers.
 
 ## Development
 
